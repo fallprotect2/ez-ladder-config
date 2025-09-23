@@ -358,14 +358,14 @@ function computeStandoffsSpliceAware(totalFeet: number, usingFeet: boolean, sect
 // ────────────────────────────────────────────────────────────────────────────────
 export default function EzLadderConfigurator() {
   // Preferred logo path + fallback
-  const LOGO_SRC = (typeof window !== "undefined" && (window as any).__DFP_LOGO__) || "/DFPlogo_white.png";
+  const base = (import.meta as any).env.BASE_URL || "/";
+  const LOGO_SRC = (typeof window !== "undefined" && (window as any).__DFP_LOGO__) || base + "DFPlogo_white.png";
   const LOGO_FALLBACK =
     "data:image/svg+xml;utf8," +
     encodeURIComponent(
       `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="200" height="40" viewBox="0 0 200 40"><rect width="200" height="40" fill="#001C55"/><text x="12" y="26" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18" fill="white">Diversified Fall Protection</text></svg>`
     );
-  const INFO_IMG_SRC = (typeof window !== "undefined" && (window as any).__STANDOFF_INFO__) || "/standoff_info.png";
-
+  const INFO_IMG_SRC = (typeof window !== "undefined" && (window as any).__STANDOFF_INFO__) || base + "standoff_info.png";
   // Inputs
   const [feet, setFeet] = useState(20);
   const [inches, setInches] = useState(0);
