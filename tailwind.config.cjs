@@ -2,7 +2,8 @@
 module.exports = {
   content: [
     "./index.html",
-    "./src/**/*.{ts,tsx,js,jsx}"
+    "./*.{ts,tsx,js,jsx}",              // pick up root-level files like main.tsx, ui-shim.tsx, etc.
+    "./{src,components}/**/*.{ts,tsx,js,jsx}" // optional: future subfolders
   ],
   theme: {
     extend: {
