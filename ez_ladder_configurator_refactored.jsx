@@ -1,11 +1,7 @@
 import React, { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle, Input, Label, Switch, Checkbox, Button, cn } from "./ui-shim";
+// remove the old "@/components/ui/*" and "@/lib/utils" imports
+
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Constants & Utilities
