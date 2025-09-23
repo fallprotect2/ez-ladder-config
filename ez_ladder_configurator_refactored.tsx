@@ -431,67 +431,67 @@ export default function EzLadderConfigurator() {
     [userInches, resolvedFeet, sections, rungPositions]
   );
 
-  // BOM rows (Inventory ID + Quantity) for export
-  const bomItems = useMemo(() => {
+  // Quote helpers
+  const combinedSupports = useMemo(() => {
+    const map = new Map<string, number>();
+    // wall standoff pairs
+    if (wallPairs > 0) map.set(wallSku, (map.get(wallSku) || 0) + wallPairs);
+    // feet contribute one additional pair of the same SKU, if present
+    if (resolvedFeet) map.set(resolvedFeet.sku, (map.get(resolvedFeet.sku) || 0) + 1);
+    return Array.from(map.entries()).map(([sku, qty]) => ({ sku, qty }));
+  }, [wallPairs, wallSku, resolvedFeet]);
+  
+// --- BOM rows (Inventory ID + Quantity) for export ---------------------------
+const bomItems = useMemo(() => {
   const rows: { sku: string; qty: number }[] = [];
   const add = (sku: string, qty: number) => {
     if (qty && qty > 0) rows.push({ sku: normalizeSku(sku), qty });
   };
 
-  // --- Ladder length → 10' sections (FL-10) ---
-  const totalFeet = Math.max(0, sections.reduce((a, b) => a + b, 0));
-  // Assumption: ERP quantity should be whole 10' sections, rounding UP to cover the length.
-  // If you prefer exact division, swap Math.ceil for totalFeet / 10 and handle decimals in your ERP.
+  // Ladder length → 10' sections (FL-10)
+  const totalFeet = Math.max(0, sections.reduce((sum, ft) => sum + ft, 0));
   const ladder10ftQty = Math.ceil(totalFeet / 10);
   add(ERP_SKU.LADDER_SECTION_10FT, ladder10ftQty);
 
-  // --- Splice kits ---
+  // Splice kits
   add(ERP_SKU.SPLICE_KIT, Math.max(0, splices));
 
-  // --- Standoffs (existing primary SKU rows) ---
-  // Keep your existing standoff line items (e.g., LAD-SO2 / LAD-SO3) as before:
+  // Primary standoff SKUs already in your quote (e.g., LAD-SO2 / LAD-SO3)
   combinedSupports.forEach(({ sku, qty }) => add(sku, qty));
 
-  // --- Standoff components for WALL pairs only (not for ladder feet) ---
-  // How we count *wall* pairs:
-  //
-  // If your `combinedSupports` items include a role flag, prefer this:
-  //   const wallPairs = combinedSupports
-  //     .filter(s => (s.sku === "LAD-SO2" || s.sku === "LAD-SO3") && s.role === "wall")
-  //     .reduce((n, s) => n + s.qty, 0);
-  //
-  // Otherwise, derive wallPairs by subtracting ladder-feet pairs:
-  //   - `ladderFeetPairs` should be the number of standoff pairs used as feet (0 if feet toggle is off).
-  //   - `standoffPairsTotal` is the total pairs of LAD-SO2 / LAD-SO3 you already computed for the quote.
-
-  const standoffPairsTotal = combinedSupports
-    .filter(s => s.sku === "LAD-SO2" || s.sku === "LAD-SO3")
-    .reduce((n, s) => n + (s.qty || 0), 0);
-
-  // If you already have a boolean like `useLadderFeet` and a count `ladderFeetPairs`, plug them in here.
-  // Fallback to 0 if not available.
-  const ladderFeetPairs =
-    typeof (globalThis as any).ladderFeetPairs === "number"
-      ? (globalThis as any).ladderFeetPairs
-      : 0;
-
-  const wallPairs = Math.max(0, standoffPairsTotal - ladderFeetPairs);
-
-  // For each *wall* standoff pair, add:
-  //   LAD-CP1 ×2 and LAD-SO1G ×2
+  // Standoff components for WALL pairs only (not for ladder feet)
+  // Add 2x LAD-CP1 and 2x LAD-SO1G per *wall* standoff pair.
   if (wallPairs > 0) {
     add(ERP_SKU.CLAMP_PAIR, 2 * wallPairs);
     add(ERP_SKU.STANDOFF_GUSSET, 2 * wallPairs);
   }
 
-  // --- Accessories (unchanged from your current logic, shown for completeness) ---
+  // Accessories (1 each when selected)
   if (accWT) add("FL-WT-01", 1);
   if (accWT && accPR) add("FL-PR-02", 1);
   if (accWT && accPR && accGate) add("LSG-2030", 1);
   if (accCover) add("FL-LGDFP-02", 1);
 
   return rows;
-}, [sections, splices, combinedSupports, accWT, accPR, accGate, accCover]);
+}, [sections, splices, combinedSupports, wallPairs, accWT, accPR, accGate, accCover]);
+
+// --- CSV download ------------------------------------------------------------
+function exportBOMCsv() {
+  const header = ["Inventory ID", "Quantity"];
+  const lines = [header.join(",")].concat(
+    bomItems.map(r => `${r.sku},${r.qty}`)
+  );
+  const csv = lines.join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "EZ-Ladder-BOM.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
   
   // Pricing (placeholders)
@@ -505,16 +505,6 @@ export default function EzLadderConfigurator() {
   const gateCost = accWT && accPR && accGate ? PRICES["LSG-2030"] : 0;
   const coverCost = accCover ? PRICES["FL-LGDFP-02"] : 0;
   const totalCost = ladderCost + spliceCost + wallCost + feetCost + wtCost + prCost + gateCost + coverCost;
-
-  // Quote helpers
-  const combinedSupports = useMemo(() => {
-    const map = new Map<string, number>();
-    // wall standoff pairs
-    if (wallPairs > 0) map.set(wallSku, (map.get(wallSku) || 0) + wallPairs);
-    // feet contribute one additional pair of the same SKU, if present
-    if (resolvedFeet) map.set(resolvedFeet.sku, (map.get(resolvedFeet.sku) || 0) + 1);
-    return Array.from(map.entries()).map(([sku, qty]) => ({ sku, qty }));
-  }, [wallPairs, wallSku, resolvedFeet]);
 
   const accessories = useMemo(() => {
     const list: { sku: string; desc: string }[] = [];
