@@ -5,6 +5,7 @@ module.exports = {
     "./src/**/*.{ts,tsx,js,jsx}",
     "./**/*.{ts,tsx,js,jsx}"
   ],
-  theme: { extend: {} },
+  theme: { extend: {fontFamily: {
+        sans: ['"Work Sans"', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'Apple Color Emoji', 'Segoe UI Emoji'],} },
   plugins: [],
 };
