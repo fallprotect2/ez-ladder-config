@@ -448,25 +448,19 @@ const bomItems = useMemo(() => {
     if (qty && qty > 0) rows.push({ sku: normalizeSku(sku), qty });
   };
 
-  // Ladder length → 10' sections (FL-10)
   const totalFeet = Math.max(0, sections.reduce((sum, ft) => sum + ft, 0));
   const ladder10ftQty = Math.ceil(totalFeet / 10);
   add(ERP_SKU.LADDER_SECTION_10FT, ladder10ftQty);
 
-  // Splice kits
   add(ERP_SKU.SPLICE_KIT, Math.max(0, splices));
 
-  // Primary standoff SKUs already in your quote (e.g., LAD-SO2 / LAD-SO3)
   combinedSupports.forEach(({ sku, qty }) => add(sku, qty));
 
-  // Standoff components for WALL pairs only (not for ladder feet)
-  // Add 2x LAD-CP1 and 2x LAD-SO1G per *wall* standoff pair.
   if (wallPairs > 0) {
     add(ERP_SKU.CLAMP_PAIR, 2 * wallPairs);
     add(ERP_SKU.STANDOFF_GUSSET, 2 * wallPairs);
   }
 
-  // Accessories (1 each when selected)
   if (accWT) add("FL-WT-01", 1);
   if (accWT && accPR) add("FL-PR-02", 1);
   if (accWT && accPR && accGate) add("LSG-2030", 1);
@@ -475,12 +469,16 @@ const bomItems = useMemo(() => {
   return rows;
 }, [sections, splices, combinedSupports, wallPairs, accWT, accPR, accGate, accCover]);
 
-// --- CSV download ------------------------------------------------------------
+// --- CSV download (adds Project Task + Cost Code) ----------------------------
 function exportBOMCsv() {
-  const header = ["Inventory ID", "Quantity"];
+  const PROJECT_TASK = "06PROD";
+  const COST_CODE = "40-030";
+
+  const header = ["Inventory ID", "Quantity", "Project Task", "Cost Code"];
   const lines = [header.join(",")].concat(
-    bomItems.map(r => `${r.sku},${r.qty}`)
+    bomItems.map(r => `${r.sku},${r.qty},${PROJECT_TASK},${COST_CODE}`)
   );
+
   const csv = lines.join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
