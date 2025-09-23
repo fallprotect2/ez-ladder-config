@@ -443,36 +443,33 @@ export default function EzLadderConfigurator() {
   
 
 
-// Standoffs that the ERP expects in EACH (not pairs)
-const STANDOFFS_EACH_NOT_PAIRS = new Set(["LAD-SO2", "LAD-SO3"]);
-
 // --- BOM rows (Inventory ID + Quantity) for export ---------------------------
+const STANDOFFS_EACH_NOT_PAIRS = new Set(["LAD-SO2", "LAD-SO3"]); // ERP expects EACH, not pairs
+
 const bomItems = useMemo(() => {
   const rows: { sku: string; qty: number }[] = [];
   const add = (sku: string, qty: number) => {
     if (qty && qty > 0) rows.push({ sku: normalizeSku(sku), qty });
   };
 
-  // Ladder length → 10' sections (decimal OK, e.g., 14 ft → 1.4)
+  // Ladder length → 10' sections as DECIMAL (e.g., 14 ft → 1.4)
   const totalFeet = Math.max(0, sections.reduce((sum, ft) => sum + ft, 0));
   const ladder10ftQty = Number((totalFeet / 10).toFixed(2));
-  add(ERP_SKU.LADDER_SECTION_10FT, ladder10ftQty);
+  add("FL-10", ladder10ftQty);                       // Inventory ID: FL-10
+  add("LADDER_SPLICE_KIT", Math.max(0, splices));    // Inventory ID: LADDER_SPLICE_KIT
 
-  // Splice kits
-  add(ERP_SKU.SPLICE_KIT, Math.max(0, splices));
-
-  // Primary standoff SKUs from your quote.
-  // Convert pairs → each for ERP by doubling LAD-SO2 / LAD-SO3.
+  // Primary standoff SKUs (your quote stores pairs) → convert to EACH for ERP
   combinedSupports.forEach(({ sku, qty }) => {
     const id = normalizeSku(sku);
     const outQty = STANDOFFS_EACH_NOT_PAIRS.has(id) ? qty * 2 : qty;
     add(id, outQty);
   });
 
-  // Wall-mounted standoff components (not used when standoffs are ladder feet)
+  // Wall-mounted standoff components (NOT when standoffs are used as ladder feet)
+  // Each wall pair adds: LAD-CP1 ×2 and LAD-SO1G ×2
   if (wallPairs > 0) {
-    add(ERP_SKU.CLAMP_PAIR, 2 * wallPairs);      // LAD-CP1, 2 per wall pair
-    add(ERP_SKU.STANDOFF_GUSSET, 2 * wallPairs); // LAD-SO1G, 2 per wall pair
+    add("LAD-CP1", 2 * wallPairs);
+    add("LAD-SO1G", 2 * wallPairs);
   }
 
   // Accessories (1 each when selected)
@@ -484,18 +481,28 @@ const bomItems = useMemo(() => {
   return rows;
 }, [sections, splices, combinedSupports, wallPairs, accWT, accPR, accGate, accCover]);
 
-  
-  // Pricing (placeholders)
-  const ladderFeetLen = Math.max(0, sections.reduce((a, b) => a + b, 0));
-  const ladderCost = ladderFeetLen * PRICES.LADDER_PER_FT;
-  const spliceCost = splices * PRICES.SPLICE_KIT;
-  const wallCost = wallPairs * (PRICES as any)[wallSku];
-  const feetCost = resolvedFeet ? (resolvedFeet.type === "SO2" ? PRICES.FEET_SO2 : PRICES.FEET_SO3) : 0;
-  const wtCost = accWT ? PRICES["FL-WT-01"] : 0;
-  const prCost = accWT && accPR ? PRICES["FL-PR-02"] : 0;
-  const gateCost = accWT && accPR && accGate ? PRICES["LSG-2030"] : 0;
-  const coverCost = accCover ? PRICES["FL-LGDFP-02"] : 0;
-  const totalCost = ladderCost + spliceCost + wallCost + feetCost + wtCost + prCost + gateCost + coverCost;
+// --- CSV download (adds Project Task + Cost Code) ----------------------------
+function exportBOMCsv() {
+  const PROJECT_TASK = "06PROD";
+  const COST_CODE = "40-030";
+
+  const header = ["Inventory ID", "Quantity", "Project Task", "Cost Code"];
+  const lines = [header.join(",")].concat(
+    bomItems.map(r => `${r.sku},${r.qty},${PROJECT_TASK},${COST_CODE}`)
+  );
+
+  const csv = lines.join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "EZ-Ladder-BOM.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 
   const accessories = useMemo(() => {
     const list: { sku: string; desc: string }[] = [];
@@ -667,7 +674,7 @@ const bomItems = useMemo(() => {
               </div>
 
               {/* Supports combined by SKU */}
-              {combinedSupports.map(({sku, qty}) => (
+              {.map(({sku, qty}) => (
                 <div key={sku} className="flex items-center justify-between">
                   <div>{sku} — {qty} pair(s)</div>
                 </div>
