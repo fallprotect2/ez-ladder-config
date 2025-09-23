@@ -366,6 +366,7 @@ export default function EzLadderConfigurator() {
       `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="200" height="40" viewBox="0 0 200 40"><rect width="200" height="40" fill="#001C55"/><text x="12" y="26" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18" fill="white">Diversified Fall Protection</text></svg>`
     );
   const INFO_IMG_SRC = (typeof window !== "undefined" && (window as any).__STANDOFF_INFO__) || base + "standoff_info.png";
+  
   // Inputs
   const [feet, setFeet] = useState(20);
   const [inches, setInches] = useState(0);
@@ -517,20 +518,15 @@ export default function EzLadderConfigurator() {
                 <ArrowHorizontal className="w-5 h-5 text-neutral-500" />
               </div>
               {showInfo && (
-                <div className="absolute right-3 top-10 z-50 w-80 bg-white border rounded-md shadow-lg p-2">
-                  <img
-                    src={INFO_IMG_SRC}
-                    alt="Standoff distance guidance"
-                    className="w-full h-auto rounded"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                  />
-                  <div className="text-xs leading-snug mt-1">
-                    <div className="font-semibold">A stand-off distance of 7 inches.</div>
-                    7 inches minimum must be measured from the mid-point of the ladder rung to the nearest permanent object behind the ladder. Allow safe clearance including any permanent obstructions.
-                    <div className="italic mt-1">Per OSHA 1910.23 (d) (2)</div>
+                  <div className="absolute right-3 top-10 z-50 w-80 bg-white border rounded-md shadow-lg p-2">
+                    <img
+                      src={INFO_IMG_SRC}
+                      alt="Standoff distance guidance"
+                      className="w-full h-auto rounded"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    />
                   </div>
-                </div>
-              )}
+                )}
               <div className="mt-2 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
                 <div><Label className="text-xs">Feet</Label><Input type="number" min={0} value={sdFeet} onChange={(e) => setSdFeet(Math.max(0, Number(e.target.value)))} /></div>
                 <div><Label className="text-xs">Inches</Label><Input type="number" min={0} max={11} value={sdInches} onChange={(e) => setSdInches(Math.min(11, Math.max(0, Number(e.target.value))))} /></div>
