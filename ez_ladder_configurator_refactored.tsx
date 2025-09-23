@@ -28,6 +28,16 @@ const PRICES = {
   "FL-LGDFP-02": 620,
 };
 
+// --- ERP / BOM helpers -------------------------------------------------------
+const ERP_SKU = {
+  LADDER_SECTION_10FT: "FL-10",            // ladder is sold in 10' sections
+  SPLICE_KIT: "LADDER_SPLICE_KIT",         // splice kit Inventory ID
+  CLAMP_PAIR: "LAD-CP1",                   // component for wall standoffs (per pair: qty 2)
+  STANDOFF_GUSSET: "LAD-SO1G",             // component for wall standoffs (per pair: qty 2)
+};
+
+const normalizeSku = (s: string) => s.replace(/[‐-‒–—―]/g, "-");
+
 const inchesToFeet = (inches: number) => inches / 12;
 const feetToInches = (feet: number) => feet * 12;
 const round = (n: number, d = 3) => Math.round(n * 10 ** d) / 10 ** d;
@@ -421,6 +431,69 @@ export default function EzLadderConfigurator() {
     [userInches, resolvedFeet, sections, rungPositions]
   );
 
+  // BOM rows (Inventory ID + Quantity) for export
+  const bomItems = useMemo(() => {
+  const rows: { sku: string; qty: number }[] = [];
+  const add = (sku: string, qty: number) => {
+    if (qty && qty > 0) rows.push({ sku: normalizeSku(sku), qty });
+  };
+
+  // --- Ladder length → 10' sections (FL-10) ---
+  const totalFeet = Math.max(0, sections.reduce((a, b) => a + b, 0));
+  // Assumption: ERP quantity should be whole 10' sections, rounding UP to cover the length.
+  // If you prefer exact division, swap Math.ceil for totalFeet / 10 and handle decimals in your ERP.
+  const ladder10ftQty = Math.ceil(totalFeet / 10);
+  add(ERP_SKU.LADDER_SECTION_10FT, ladder10ftQty);
+
+  // --- Splice kits ---
+  add(ERP_SKU.SPLICE_KIT, Math.max(0, splices));
+
+  // --- Standoffs (existing primary SKU rows) ---
+  // Keep your existing standoff line items (e.g., LAD-SO2 / LAD-SO3) as before:
+  combinedSupports.forEach(({ sku, qty }) => add(sku, qty));
+
+  // --- Standoff components for WALL pairs only (not for ladder feet) ---
+  // How we count *wall* pairs:
+  //
+  // If your `combinedSupports` items include a role flag, prefer this:
+  //   const wallPairs = combinedSupports
+  //     .filter(s => (s.sku === "LAD-SO2" || s.sku === "LAD-SO3") && s.role === "wall")
+  //     .reduce((n, s) => n + s.qty, 0);
+  //
+  // Otherwise, derive wallPairs by subtracting ladder-feet pairs:
+  //   - `ladderFeetPairs` should be the number of standoff pairs used as feet (0 if feet toggle is off).
+  //   - `standoffPairsTotal` is the total pairs of LAD-SO2 / LAD-SO3 you already computed for the quote.
+
+  const standoffPairsTotal = combinedSupports
+    .filter(s => s.sku === "LAD-SO2" || s.sku === "LAD-SO3")
+    .reduce((n, s) => n + (s.qty || 0), 0);
+
+  // If you already have a boolean like `useLadderFeet` and a count `ladderFeetPairs`, plug them in here.
+  // Fallback to 0 if not available.
+  const ladderFeetPairs =
+    typeof (globalThis as any).ladderFeetPairs === "number"
+      ? (globalThis as any).ladderFeetPairs
+      : 0;
+
+  const wallPairs = Math.max(0, standoffPairsTotal - ladderFeetPairs);
+
+  // For each *wall* standoff pair, add:
+  //   LAD-CP1 ×2 and LAD-SO1G ×2
+  if (wallPairs > 0) {
+    add(ERP_SKU.CLAMP_PAIR, 2 * wallPairs);
+    add(ERP_SKU.STANDOFF_GUSSET, 2 * wallPairs);
+  }
+
+  // --- Accessories (unchanged from your current logic, shown for completeness) ---
+  if (accWT) add("FL-WT-01", 1);
+  if (accWT && accPR) add("FL-PR-02", 1);
+  if (accWT && accPR && accGate) add("LSG-2030", 1);
+  if (accCover) add("FL-LGDFP-02", 1);
+
+  return rows;
+}, [sections, splices, combinedSupports, accWT, accPR, accGate, accCover]);
+
+  
   // Pricing (placeholders)
   const ladderFeetLen = Math.max(0, sections.reduce((a, b) => a + b, 0));
   const ladderCost = ladderFeetLen * PRICES.LADDER_PER_FT;
@@ -631,6 +704,13 @@ export default function EzLadderConfigurator() {
                 <div>Total</div>
                 <div><Money value={totalCost} /></div>
               </div>
+            </div>
+
+            {/* Export */}
+            <div className="pt-3">
+              <Button onClick={exportBOMCsv} className="w-full">
+                Export BOM (CSV)
+              </Button>
             </div>
 
             {inchesToFeet(userInches) >= 24 && (
