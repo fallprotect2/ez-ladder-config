@@ -441,55 +441,51 @@ export default function EzLadderConfigurator() {
     return Array.from(map.entries()).map(([sku, qty]) => ({ sku, qty }));
   }, [wallPairs, wallSku, resolvedFeet]);
   
-// --- BOM rows (Inventory ID + Quantity) for export ---------------------------
-const bomItems = useMemo(() => {
-  const rows: { sku: string; qty: number }[] = [];
-  const add = (sku: string, qty: number) => {
-    if (qty && qty > 0) rows.push({ sku: normalizeSku(sku), qty });
-  };
 
-  const totalFeet = Math.max(0, sections.reduce((sum, ft) => sum + ft, 0));
-  const ladder10ftQty = Math.ceil(totalFeet / 10);
-  add(ERP_SKU.LADDER_SECTION_10FT, ladder10ftQty);
-
-  add(ERP_SKU.SPLICE_KIT, Math.max(0, splices));
-
-  combinedSupports.forEach(({ sku, qty }) => add(sku, qty));
-
-  if (wallPairs > 0) {
-    add(ERP_SKU.CLAMP_PAIR, 2 * wallPairs);
-    add(ERP_SKU.STANDOFF_GUSSET, 2 * wallPairs);
-  }
-
-  if (accWT) add("FL-WT-01", 1);
-  if (accWT && accPR) add("FL-PR-02", 1);
-  if (accWT && accPR && accGate) add("LSG-2030", 1);
-  if (accCover) add("FL-LGDFP-02", 1);
-
-  return rows;
-}, [sections, splices, combinedSupports, wallPairs, accWT, accPR, accGate, accCover]);
-
-// --- CSV download (adds Project Task + Cost Code) ----------------------------
-function exportBOMCsv() {
-  const PROJECT_TASK = "06PROD";
-  const COST_CODE = "40-030";
-
-  const header = ["Inventory ID", "Quantity", "Project Task", "Cost Code"];
-  const lines = [header.join(",")].concat(
-    bomItems.map(r => `${r.sku},${r.qty},${PROJECT_TASK},${COST_CODE}`)
-  );
-
-  const csv = lines.join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "EZ-Ladder-BOM.csv";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+  // Normalize hyphens and fix common standoff alias
+  const normalizeSku = (s: string) =>
+    s.replace(/[‐-‒–—―]/g, "-").replace(/^LAS-SO3$/i, "LAD-SO3");
+  
+  // Standoffs that the ERP expects in EACH (not pairs)
+  const STANDOFFS_EACH_NOT_PAIRS = new Set(["LAD-SO2", "LAD-SO3"]);
+  
+  // --- BOM rows (Inventory ID + Quantity) for export ---------------------------
+  const bomItems = useMemo(() => {
+    const rows: { sku: string; qty: number }[] = [];
+    const add = (sku: string, qty: number) => {
+      if (qty && qty > 0) rows.push({ sku: normalizeSku(sku), qty });
+    };
+  
+    // Ladder length → 10' sections (decimal OK, e.g., 14 ft → 1.4)
+    const totalFeet = Math.max(0, sections.reduce((sum, ft) => sum + ft, 0));
+    const ladder10ftQty = Number((totalFeet / 10).toFixed(1));
+    add(ERP_SKU.LADDER_SECTION_10FT, ladder10ftQty);
+  
+    // Splice kits
+    add(ERP_SKU.SPLICE_KIT, Math.max(0, splices));
+  
+    // Primary standoff SKUs from your quote.
+    // Convert pairs → each for ERP by doubling LAD-SO2 / LAD-SO3.
+    combinedSupports.forEach(({ sku, qty }) => {
+      const id = normalizeSku(sku);
+      const outQty = STANDOFFS_EACH_NOT_PAIRS.has(id) ? qty * 2 : qty;
+      add(id, outQty);
+    });
+  
+    // Wall-mounted standoff components (not used when standoffs are ladder feet)
+    if (wallPairs > 0) {
+      add(ERP_SKU.CLAMP_PAIR, 2 * wallPairs);      // LAD-CP1, 2 per wall pair
+      add(ERP_SKU.STANDOFF_GUSSET, 2 * wallPairs); // LAD-SO1G, 2 per wall pair
+    }
+  
+    // Accessories (1 each when selected)
+    if (accWT) add("FL-WT-01", 1);
+    if (accWT && accPR) add("FL-PR-02", 1);
+    if (accWT && accPR && accGate) add("LSG-2030", 1);
+    if (accCover) add("FL-LGDFP-02", 1);
+  
+    return rows;
+  }, [sections, splices, combinedSupports, wallPairs, accWT, accPR, accGate, accCover]);
 
   
   // Pricing (placeholders)
