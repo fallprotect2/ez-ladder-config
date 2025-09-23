@@ -2,10 +2,14 @@
 module.exports = {
   content: [
     "./index.html",
-    "./src/**/*.{ts,tsx,js,jsx}",
-    "./**/*.{ts,tsx,js,jsx}"
+    "./src/**/*.{ts,tsx,js,jsx}"
   ],
-  theme: { extend: {fontFamily: {
-        sans: ['"Work Sans"', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'Apple Color Emoji', 'Segoe UI Emoji'],} },
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['"Work Sans"', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'Apple Color Emoji', 'Segoe UI Emoji'],
+      },
+    },
+  },
   plugins: [],
 };
