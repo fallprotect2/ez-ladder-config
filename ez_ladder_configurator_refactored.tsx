@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, Input, Label, Switch, Checkbo
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Constants & Utilities
-const SO2_WALL = [8.625, 9.75, 10.875, 12];
+const SO2_WALL = [8.625, 9.75, 10.875, 12];helpers
 const SO3_WALL = [13.125, 14.25, 15.375];
 const SO2_FEET = [8.5, 10.75, 11.875];
 const SO3_FEET = [13, 14.125];
@@ -442,9 +442,6 @@ export default function EzLadderConfigurator() {
   }, [wallPairs, wallSku, resolvedFeet]);
   
 
- // Normalize hyphens and fix common standoff alias
-const normalizeSku = (s: string) =>
-  s.replace(/[‐-‒–—―]/g, "-").replace(/^LAS-SO3$/i, "LAD-SO3");
 
 // Standoffs that the ERP expects in EACH (not pairs)
 const STANDOFFS_EACH_NOT_PAIRS = new Set(["LAD-SO2", "LAD-SO3"]);
