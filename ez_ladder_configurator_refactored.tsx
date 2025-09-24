@@ -380,8 +380,7 @@ export default function EzLadderConfigurator() {
   // Inputs
   const [feet, setFeet] = useState(20);
   const [inches, setInches] = useState(0);
-  // Standoff distance: slider in inches (7.000" to 15.375")
-  const [standoffInches, setStandoffInches] = useState(12); // sensible default ~= 1'-0"
+  const [standoffInches, setStandoffInches] = useState(12);
   const [useFeetAnchors, setUseFeetAnchors] = useState(false);
   const [accWT, setAccWT] = useState(false);
   const [accPR, setAccPR] = useState(false);
@@ -394,11 +393,10 @@ export default function EzLadderConfigurator() {
 
   // Standoff resolution
   const requestedStandoffInches = useMemo(() => {
-  // clamp to slider bounds just in case
-  const min = 7;
-  const max = 15.375; // 1' 3-3/8"
-  return Math.min(max, Math.max(min, Number(standoffInches) || 0));
-}, [standoffInches]);
+    const min = 7;
+    const max = 15.375; // 1' 3-3/8"
+    return Math.min(max, Math.max(min, Number(standoffInches) || 0));
+  }, [standoffInches]);
   const wallResolved = useMemo(() => resolveStandoffSpec(requestedStandoffInches || 0), [requestedStandoffInches]);
   const wallSku = wallResolved?.sku ?? "LAD-SO2";
   const wallOffset = wallResolved?.valueInches ?? 0;
@@ -558,65 +556,15 @@ function exportBOMCsv() {
             <div className="rounded-xl border p-3">
               <div className="flex items-center justify-between"><Label className="font-medium">Ladder Height</Label><ArrowVertical className="w-5 h-5 text-neutral-500" /></div>
               <div className="mt-2 space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">Set distance (to rail centerline)</Label>
-                <div className="text-xs tabular-nums">
-                  {fmtInches(requestedStandoffInches)}
-                </div>
-              </div>
-              <input
-                type="range"
-                min={7}
-                max={15.375}
-                step={0.125} // 1/8" increments
-                value={standoffInches}
-                onChange={(e) => setStandoffInches(Number(e.target.value))}
-                className="w-full"
-                aria-label="Standoff distance slider"
-              />
-              <div className="flex justify-between text-[11px] text-neutral-500">
-                <span>7″</span>
-                <span>1′-3⅜″</span>
-              </div>
-            </div>
-            </div>
-
-            {/* Standoff Distance */}
-            <div className="rounded-xl border p-3 relative">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Label className="font-medium">Standoff Distance</Label>
-                  {/* Info icon (hover/tap) */}
-                  <button
-                    type="button"
-                    aria-label="Standoff distance help"
-                    className="h-5 w-5 rounded-full border text-[10px] leading-none grid place-items-center text-neutral-700 hover:bg-neutral-50"
-                    onMouseEnter={() => setShowInfo(true)}
-                    onMouseLeave={() => setShowInfo(false)}
-                    onFocus={() => setShowInfo(true)}
-                    onBlur={() => setShowInfo(false)}
-                    onClick={() => setShowInfo((v) => !v)}
-                  >i</button>
-                </div>
-                <ArrowHorizontal className="w-5 h-5 text-neutral-500" />
-              </div>
-              {showInfo && (
-                  <div className="absolute right-3 top-10 z-50 w-80 bg-white border rounded-md shadow-lg p-2">
-                    <img
-                      src={INFO_IMG_SRC}
-                      alt="Standoff distance guidance"
-                      className="w-full h-auto rounded"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  </div>
-                )}
-              <div className="mt-2 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-                <div><Label className="text-xs">Feet</Label><Input type="number" min={0} value={sdFeet} onChange={(e) => setSdFeet(Math.max(0, Number(e.target.value)))} /></div>
-                <div><Label className="text-xs">Inches</Label><Input type="number" min={0} max={11} value={sdInches} onChange={(e) => setSdInches(Math.min(11, Math.max(0, Number(e.target.value))))} /></div>
-                <div className="hidden sm:flex items-center justify-center p-2"><ArrowHorizontal className="w-8 h-8 text-neutral-400" /></div>
-              </div>
-              {/* Per request: hide requested/resolved summary */}
-            </div>
+  <div className="flex items-center justify-between">
+    <Label className="text-xs">Set distance (to rail centerline)</Label>
+    <div className="text-xs tabular-nums">{fmtInches(requestedStandoffInches)}</div>
+  </div>
+  <input type="range" min={7} max={15.375} step={0.125} value={standoffInches} onChange={(e) => setStandoffInches(Number(e.target.value))} className="w-full" aria-label="Standoff distance slider" />
+  <div className="flex justify-between text-[11px] text-neutral-500"><span>7″</span><span>1′-3⅜″</span></div>
+</div>
+{/* Per request: hide requested/resolved summary */}
+</div>
 
             {/* Feet Toggle */}
             <div className="flex items-center justify-between rounded-xl border p-3">
