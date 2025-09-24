@@ -380,8 +380,8 @@ export default function EzLadderConfigurator() {
   // Inputs
   const [feet, setFeet] = useState(20);
   const [inches, setInches] = useState(0);
-  const [sdFeet, setSdFeet] = useState(1);
-  const [sdInches, setSdInches] = useState(0);
+  // Standoff distance: slider in inches (7.000" to 15.375")
+  const [standoffInches, setStandoffInches] = useState(12); // sensible default ~= 1'-0"
   const [useFeetAnchors, setUseFeetAnchors] = useState(false);
   const [accWT, setAccWT] = useState(false);
   const [accPR, setAccPR] = useState(false);
@@ -393,7 +393,12 @@ export default function EzLadderConfigurator() {
   const userInches = useMemo(() => feetToInches(Number(feet || 0)) + Number(inches || 0), [feet, inches]);
 
   // Standoff resolution
-  const requestedStandoffInches = useMemo(() => feetToInches(Number(sdFeet || 0)) + Number(sdInches || 0), [sdFeet, sdInches]);
+  const requestedStandoffInches = useMemo(() => {
+  // clamp to slider bounds just in case
+  const min = 7;
+  const max = 15.375; // 1' 3-3/8"
+  return Math.min(max, Math.max(min, Number(standoffInches) || 0));
+}, [standoffInches]);
   const wallResolved = useMemo(() => resolveStandoffSpec(requestedStandoffInches || 0), [requestedStandoffInches]);
   const wallSku = wallResolved?.sku ?? "LAD-SO2";
   const wallOffset = wallResolved?.valueInches ?? 0;
@@ -552,11 +557,28 @@ function exportBOMCsv() {
             {/* Ladder Height */}
             <div className="rounded-xl border p-3">
               <div className="flex items-center justify-between"><Label className="font-medium">Ladder Height</Label><ArrowVertical className="w-5 h-5 text-neutral-500" /></div>
-              <div className="mt-2 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-                <div><Label className="text-xs">Feet</Label><Input type="number" min={0} value={feet} onChange={(e) => setFeet(Number(e.target.value))} /></div>
-                <div><Label className="text-xs">Inches</Label><Input type="number" min={0} max={11} value={inches} onChange={(e) => setInches(Math.min(11, Math.max(0, Number(e.target.value))))} /></div>
-                <div className="hidden sm:flex items-center justify-center p-2"><ArrowVertical className="w-8 h-8 text-neutral-400" /></div>
+              <div className="mt-2 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Set distance (to rail centerline)</Label>
+                <div className="text-xs tabular-nums">
+                  {fmtInches(requestedStandoffInches)}
+                </div>
               </div>
+              <input
+                type="range"
+                min={7}
+                max={15.375}
+                step={0.125} // 1/8" increments
+                value={standoffInches}
+                onChange={(e) => setStandoffInches(Number(e.target.value))}
+                className="w-full"
+                aria-label="Standoff distance slider"
+              />
+              <div className="flex justify-between text-[11px] text-neutral-500">
+                <span>7″</span>
+                <span>1′-3⅜″</span>
+              </div>
+            </div>
             </div>
 
             {/* Standoff Distance */}
