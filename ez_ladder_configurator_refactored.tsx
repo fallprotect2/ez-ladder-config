@@ -15,6 +15,64 @@ const ALL_STANDOFFS = [
   { type: "SO3" as const, sku: "LAD-SO3", options: SO3_WALL },
 ];
 
+// Allowed standoff sizes in inches (pairs)
+const sp = [8.625, 9.75, 10.875, 12] as const;
+
+// General utilities used across the visualizer / BOM
+type Inch = number;
+type FeetInches = { feet: number; inches: number };
+
+const helpers = {
+  // Feet + inches → total inches
+  toInches(feet: number, inches: number): Inch {
+    return feet * 12 + inches;
+  },
+
+  // total inches → { feet, inches } (keeps up to 3 decimals of inches)
+  fromInches(total: Inch): FeetInches {
+    const feet = Math.floor(total / 12);
+    const inches = Number((total - feet * 12).toFixed(3));
+    return { feet, inches };
+  },
+
+  // Decimal feet ↔︎ feet/inches
+  feetToDecimalFeet(feet: number, inches: number): number {
+    return feet + inches / 12;
+  },
+  decimalFeetToFeetInches(decimalFeet: number): FeetInches {
+    const feet = Math.floor(decimalFeet);
+    const inches = Number(((decimalFeet - feet) * 12).toFixed(3));
+    return { feet, inches };
+  },
+
+  // Clamp to a range
+  clamp<T extends number>(v: T, min: T, max: T): T {
+    return Math.min(max, Math.max(min, v)) as T;
+  },
+
+  // Round UP to the next available size from an allowed set
+  snapUpTo(valueInches: Inch, allowed: readonly number[]): Inch {
+    for (const s of allowed) {
+      if (valueInches <= s) return s;
+    }
+    // if larger than any allowed, cap at largest
+    return allowed[allowed.length - 1];
+  },
+
+  // Round to NEAREST available size from an allowed set
+  snapNearestTo(valueInches: Inch, allowed: readonly number[]): Inch {
+    return allowed.reduce((best, s) =>
+      Math.abs(s - valueInches) < Math.abs(best - valueInches) ? s : best
+    , allowed[0]);
+  },
+
+  // Round to a step (e.g., 0.25" increments)
+  roundToStep(value: number, step: number): number {
+    return Math.round(value / step) * step;
+  },
+};
+
+
 const PRICES = {
   LADDER_PER_FT: 64.06,
   SPLICE_KIT: 48.6,
@@ -33,7 +91,7 @@ const ERP_SKU = {
   LADDER_SECTION_10FT: "FL-10",            // ladder is sold in 10' sections
   SPLICE_KIT: "LADDER_SPLICE_KIT",         // splice kit Inventory ID
   CLAMP_PAIR: "LAD-CP1",                   // component for wall standoffs (per pair: qty 2)
-  STANDOFF_GUSSET: "LAD-SO1G",             // component for wall standoffs (per pair: qty 2)
+  STANDOFF_GUSSET: "LAD-SO1G",             // component for wall  (per pair: qty 2)
 };
 
 const normalizeSku = (s: string) => s.replace(/[‐-‒–—―]/g, "-");
@@ -105,11 +163,11 @@ function computeRungInfo(
   return { rungPositions, alignment };
 }
 
-function resolveStandoffSpec(targetInches: number) {
-  const opts = ALL_STANDOFFS.flatMap(s => s.options.map(v => ({ type: s.type, sku: s.sku, value: v, delta: Math.abs(v - targetInches) })));
+function resolvepec(targetInches: number) {
+  const opts = ALL_.flatMap(s => s.options.map(v => ({ type: s.type, sku: s.sku, value: v, delta: Math.abs(v - targetInches) })));
   opts.sort((a, b) => (a.delta === b.delta ? (a.type < b.type ? -1 : 1) : a.delta - b.delta));
   const best = opts[0];
-  const range = ALL_STANDOFFS.flatMap(s => s.options);
+  const range = ALL_.flatMap(s => s.options);
   const inRange = targetInches >= Math.min(...range) && targetInches <= Math.max(...range);
   return { type: best.type, sku: best.sku, valueInches: best.value, exact: best.delta < 1e-6, inRange };
 }
