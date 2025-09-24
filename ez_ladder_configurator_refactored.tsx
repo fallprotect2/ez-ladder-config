@@ -101,7 +101,7 @@ const feetToInches = (feet: number) => feet * 12;
 const round = (n: number, d = 3) => Math.round(n * 10 ** d) / 10 ** d;
 const fmtFeet = (ft: number) => `${Math.floor(ft)}'-${Math.round((ft % 1) * 12)}″`;
 const fmtInches = (inch: number) => `${Math.floor(inch / 12)}'-${Math.round(inch % 12)}″`;
-
+const resolveStandoffSpec = (inches: number)
 // Simple icons
 const ArrowVertical = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
