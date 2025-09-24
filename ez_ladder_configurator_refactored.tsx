@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, Input, Label, Switch, Checkbo
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Constants & Utilities
-const SO2_WALL = [8.625, 9.75, 10.875, 12];helpers
+const SO2_WALL = [8.625, 9.75, 10.875, 12];
 const SO3_WALL = [13.125, 14.25, 15.375];
 const SO2_FEET = [8.5, 10.75, 11.875];
 const SO3_FEET = [13, 14.125];
@@ -14,64 +14,6 @@ const ALL_STANDOFFS = [
   { type: "SO2" as const, sku: "LAD-SO2", options: SO2_WALL },
   { type: "SO3" as const, sku: "LAD-SO3", options: SO3_WALL },
 ];
-
-// Allowed standoff sizes in inches (pairs)
-const sp = [8.625, 9.75, 10.875, 12] as const;
-
-// General utilities used across the visualizer / BOM
-type Inch = number;
-type FeetInches = { feet: number; inches: number };
-
-const helpers = {
-  // Feet + inches → total inches
-  toInches(feet: number, inches: number): Inch {
-    return feet * 12 + inches;
-  },
-
-  // total inches → { feet, inches } (keeps up to 3 decimals of inches)
-  fromInches(total: Inch): FeetInches {
-    const feet = Math.floor(total / 12);
-    const inches = Number((total - feet * 12).toFixed(3));
-    return { feet, inches };
-  },
-
-  // Decimal feet ↔︎ feet/inches
-  feetToDecimalFeet(feet: number, inches: number): number {
-    return feet + inches / 12;
-  },
-  decimalFeetToFeetInches(decimalFeet: number): FeetInches {
-    const feet = Math.floor(decimalFeet);
-    const inches = Number(((decimalFeet - feet) * 12).toFixed(3));
-    return { feet, inches };
-  },
-
-  // Clamp to a range
-  clamp<T extends number>(v: T, min: T, max: T): T {
-    return Math.min(max, Math.max(min, v)) as T;
-  },
-
-  // Round UP to the next available size from an allowed set
-  snapUpTo(valueInches: Inch, allowed: readonly number[]): Inch {
-    for (const s of allowed) {
-      if (valueInches <= s) return s;
-    }
-    // if larger than any allowed, cap at largest
-    return allowed[allowed.length - 1];
-  },
-
-  // Round to NEAREST available size from an allowed set
-  snapNearestTo(valueInches: Inch, allowed: readonly number[]): Inch {
-    return allowed.reduce((best, s) =>
-      Math.abs(s - valueInches) < Math.abs(best - valueInches) ? s : best
-    , allowed[0]);
-  },
-
-  // Round to a step (e.g., 0.25" increments)
-  roundToStep(value: number, step: number): number {
-    return Math.round(value / step) * step;
-  },
-};
-
 
 const PRICES = {
   LADDER_PER_FT: 64.06,
@@ -91,7 +33,7 @@ const ERP_SKU = {
   LADDER_SECTION_10FT: "FL-10",            // ladder is sold in 10' sections
   SPLICE_KIT: "LADDER_SPLICE_KIT",         // splice kit Inventory ID
   CLAMP_PAIR: "LAD-CP1",                   // component for wall standoffs (per pair: qty 2)
-  STANDOFF_GUSSET: "LAD-SO1G",             // component for wall  (per pair: qty 2)
+  STANDOFF_GUSSET: "LAD-SO1G",             // component for wall standoffs (per pair: qty 2)
 };
 
 const normalizeSku = (s: string) => s.replace(/[‐-‒–—―]/g, "-");
@@ -101,7 +43,6 @@ const feetToInches = (feet: number) => feet * 12;
 const round = (n: number, d = 3) => Math.round(n * 10 ** d) / 10 ** d;
 const fmtFeet = (ft: number) => `${Math.floor(ft)}'-${Math.round((ft % 1) * 12)}″`;
 const fmtInches = (inch: number) => `${Math.floor(inch / 12)}'-${Math.round(inch % 12)}″`;
-const resolveStandoffSpec = (inches: number);
 
 // Simple icons
 const ArrowVertical = ({ className }: { className?: string }) => (
@@ -164,11 +105,11 @@ function computeRungInfo(
   return { rungPositions, alignment };
 }
 
-function resolvepec(targetInches: number) {
-  const opts = ALL_.flatMap(s => s.options.map(v => ({ type: s.type, sku: s.sku, value: v, delta: Math.abs(v - targetInches) })));
+function resolveStandoffSpec(targetInches: number) {
+  const opts = ALL_STANDOFFS.flatMap(s => s.options.map(v => ({ type: s.type, sku: s.sku, value: v, delta: Math.abs(v - targetInches) })));
   opts.sort((a, b) => (a.delta === b.delta ? (a.type < b.type ? -1 : 1) : a.delta - b.delta));
   const best = opts[0];
-  const range = ALL_.flatMap(s => s.options);
+  const range = ALL_STANDOFFS.flatMap(s => s.options);
   const inRange = targetInches >= Math.min(...range) && targetInches <= Math.max(...range);
   return { type: best.type, sku: best.sku, valueInches: best.value, exact: best.delta < 1e-6, inRange };
 }
@@ -500,41 +441,26 @@ export default function EzLadderConfigurator() {
     return Array.from(map.entries()).map(([sku, qty]) => ({ sku, qty }));
   }, [wallPairs, wallSku, resolvedFeet]);
   
-// ── BOM helpers (unique) ─────────────────────────────────────────────────────
-const STANDOFFS_EACH_NOT_PAIRS = new Set(["LAD-SO2", "LAD-SO3"]);
-
-// Replace non-ASCII hyphens with '-' and fix common alias
-const normalizeSku = (s: string) =>
-  s.replace(/[‐-‒–—―]/g, "-").replace(/^LAS-SO3$/i, "LAD-SO3");
-
-// ── BOM rows (Inventory ID + Quantity + Project/Cost metadata) ───────────────
+// --- BOM rows (Inventory ID + Quantity) for export ---------------------------
 const bomItems = useMemo(() => {
   const rows: { sku: string; qty: number }[] = [];
   const add = (sku: string, qty: number) => {
     if (qty && qty > 0) rows.push({ sku: normalizeSku(sku), qty });
   };
 
-  // Ladder length → 10' sections as decimal (e.g., 14 ft → 1.4)
   const totalFeet = Math.max(0, sections.reduce((sum, ft) => sum + ft, 0));
-  add("FL-10", Number((totalFeet / 10).toFixed(2)));
+  const ladder10ftQty = Math.ceil(totalFeet / 10);
+  add(ERP_SKU.LADDER_SECTION_10FT, ladder10ftQty);
 
-  // Splice kits
-  add("LADDER_SPLICE_KIT", Math.max(0, splices));
+  add(ERP_SKU.SPLICE_KIT, Math.max(0, splices));
 
-  // Standoff primary SKUs (your UI counts pairs) → ERP wants EACH
-  combinedSupports.forEach(({ sku, qty }) => {
-    const id = normalizeSku(sku);
-    const outQty = STANDOFFS_EACH_NOT_PAIRS.has(id) ? qty * 2 : qty;
-    add(id, outQty);
-  });
+  combinedSupports.forEach(({ sku, qty }) => add(sku, qty));
 
-  // Wall-mounted standoff components (NOT when standoffs are ladder feet)
   if (wallPairs > 0) {
-    add("LAD-CP1", 2 * wallPairs);
-    add("LAD-SO1G", 2 * wallPairs);
+    add(ERP_SKU.CLAMP_PAIR, 2 * wallPairs);
+    add(ERP_SKU.STANDOFF_GUSSET, 2 * wallPairs);
   }
 
-  // Accessories (1 each when selected)
   if (accWT) add("FL-WT-01", 1);
   if (accWT && accPR) add("FL-PR-02", 1);
   if (accWT && accPR && accGate) add("LSG-2030", 1);
@@ -543,14 +469,16 @@ const bomItems = useMemo(() => {
   return rows;
 }, [sections, splices, combinedSupports, wallPairs, accWT, accPR, accGate, accCover]);
 
-// ── CSV export (with Project Task & Cost Code) ────────────────────────────────
+// --- CSV download (adds Project Task + Cost Code) ----------------------------
 function exportBOMCsv() {
   const PROJECT_TASK = "06PROD";
   const COST_CODE = "40-030";
+
   const header = ["Inventory ID", "Quantity", "Project Task", "Cost Code"];
   const lines = [header.join(",")].concat(
     bomItems.map(r => `${r.sku},${r.qty},${PROJECT_TASK},${COST_CODE}`)
   );
+
   const csv = lines.join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -562,6 +490,19 @@ function exportBOMCsv() {
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+  
+  // Pricing (placeholders)
+  const ladderFeetLen = Math.max(0, sections.reduce((a, b) => a + b, 0));
+  const ladderCost = ladderFeetLen * PRICES.LADDER_PER_FT;
+  const spliceCost = splices * PRICES.SPLICE_KIT;
+  const wallCost = wallPairs * (PRICES as any)[wallSku];
+  const feetCost = resolvedFeet ? (resolvedFeet.type === "SO2" ? PRICES.FEET_SO2 : PRICES.FEET_SO3) : 0;
+  const wtCost = accWT ? PRICES["FL-WT-01"] : 0;
+  const prCost = accWT && accPR ? PRICES["FL-PR-02"] : 0;
+  const gateCost = accWT && accPR && accGate ? PRICES["LSG-2030"] : 0;
+  const coverCost = accCover ? PRICES["FL-LGDFP-02"] : 0;
+  const totalCost = ladderCost + spliceCost + wallCost + feetCost + wtCost + prCost + gateCost + coverCost;
 
   const accessories = useMemo(() => {
     const list: { sku: string; desc: string }[] = [];
@@ -733,16 +674,11 @@ function exportBOMCsv() {
               </div>
 
               {/* Supports combined by SKU */}
-              {combinedSupports.length > 0 ? (
-                combinedSupports.map(({ sku, qty }) => (
-                  <div key={sku} className="flex items-center justify-between">
-                    <div>{sku} — {qty} pair(s)</div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-muted-foreground">No standoffs selected</div>
-              )}
-
+              {combinedSupports.map(({sku, qty}) => (
+                <div key={sku} className="flex items-center justify-between">
+                  <div>{sku} — {qty} pair(s)</div>
+                </div>
+              ))}
 
               {/* Accessories as separate line items */}
               {accessories.map((a) => (
