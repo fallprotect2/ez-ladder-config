@@ -674,11 +674,16 @@ function exportBOMCsv() {
               </div>
 
               {/* Supports combined by SKU */}
-              {.map(({sku, qty}) => (
-                <div key={sku} className="flex items-center justify-between">
-                  <div>{sku} — {qty} pair(s)</div>
-                </div>
-              ))}
+              {combinedSupports.length > 0 ? (
+                combinedSupports.map(({ sku, qty }) => (
+                  <div key={sku} className="flex items-center justify-between">
+                    <div>{sku} — {qty} pair(s)</div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground">No standoffs selected</div>
+              )}
+
 
               {/* Accessories as separate line items */}
               {accessories.map((a) => (
