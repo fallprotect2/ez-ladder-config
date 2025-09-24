@@ -441,32 +441,35 @@ export default function EzLadderConfigurator() {
     return Array.from(map.entries()).map(([sku, qty]) => ({ sku, qty }));
   }, [wallPairs, wallSku, resolvedFeet]);
   
+// ── BOM helpers (unique) ─────────────────────────────────────────────────────
+const STANDOFFS_EACH_NOT_PAIRS = new Set(["LAD-SO2", "LAD-SO3"]);
 
+// Replace non-ASCII hyphens with '-' and fix common alias
+const normalizeSku = (s: string) =>
+  s.replace(/[‐-‒–—―]/g, "-").replace(/^LAS-SO3$/i, "LAD-SO3");
 
-// --- BOM rows (Inventory ID + Quantity) for export ---------------------------
-const STANDOFFS_EACH_NOT_PAIRS = new Set(["LAD-SO2", "LAD-SO3"]); // ERP expects EACH, not pairs
-
+// ── BOM rows (Inventory ID + Quantity + Project/Cost metadata) ───────────────
 const bomItems = useMemo(() => {
   const rows: { sku: string; qty: number }[] = [];
   const add = (sku: string, qty: number) => {
     if (qty && qty > 0) rows.push({ sku: normalizeSku(sku), qty });
   };
 
-  // Ladder length → 10' sections as DECIMAL (e.g., 14 ft → 1.4)
+  // Ladder length → 10' sections as decimal (e.g., 14 ft → 1.4)
   const totalFeet = Math.max(0, sections.reduce((sum, ft) => sum + ft, 0));
-  const ladder10ftQty = Number((totalFeet / 10).toFixed(2));
-  add("FL-10", ladder10ftQty);                       // Inventory ID: FL-10
-  add("LADDER_SPLICE_KIT", Math.max(0, splices));    // Inventory ID: LADDER_SPLICE_KIT
+  add("FL-10", Number((totalFeet / 10).toFixed(2)));
 
-  // Primary standoff SKUs (your quote stores pairs) → convert to EACH for ERP
+  // Splice kits
+  add("LADDER_SPLICE_KIT", Math.max(0, splices));
+
+  // Standoff primary SKUs (your UI counts pairs) → ERP wants EACH
   combinedSupports.forEach(({ sku, qty }) => {
     const id = normalizeSku(sku);
     const outQty = STANDOFFS_EACH_NOT_PAIRS.has(id) ? qty * 2 : qty;
     add(id, outQty);
   });
 
-  // Wall-mounted standoff components (NOT when standoffs are used as ladder feet)
-  // Each wall pair adds: LAD-CP1 ×2 and LAD-SO1G ×2
+  // Wall-mounted standoff components (NOT when standoffs are ladder feet)
   if (wallPairs > 0) {
     add("LAD-CP1", 2 * wallPairs);
     add("LAD-SO1G", 2 * wallPairs);
@@ -481,16 +484,14 @@ const bomItems = useMemo(() => {
   return rows;
 }, [sections, splices, combinedSupports, wallPairs, accWT, accPR, accGate, accCover]);
 
-// --- CSV download (adds Project Task + Cost Code) ----------------------------
+// ── CSV export (with Project Task & Cost Code) ────────────────────────────────
 function exportBOMCsv() {
   const PROJECT_TASK = "06PROD";
   const COST_CODE = "40-030";
-
   const header = ["Inventory ID", "Quantity", "Project Task", "Cost Code"];
   const lines = [header.join(",")].concat(
     bomItems.map(r => `${r.sku},${r.qty},${PROJECT_TASK},${COST_CODE}`)
   );
-
   const csv = lines.join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -502,7 +503,6 @@ function exportBOMCsv() {
   a.remove();
   URL.revokeObjectURL(url);
 }
-
 
   const accessories = useMemo(() => {
     const list: { sku: string; desc: string }[] = [];
