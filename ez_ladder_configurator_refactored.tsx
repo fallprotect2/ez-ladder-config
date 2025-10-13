@@ -24,14 +24,14 @@ const PRICES = {
   FEET_SO3: 24.6,
   "FL-WT-01": 329.22,
   "FL-PR-02": 146.44,
-  "LSG-2030": 425,
+  "LSG-2030-PCY": 425,
   "FL-LGDFP-02": 620,
 };
 
 // --- ERP / BOM helpers -------------------------------------------------------
 const ERP_SKU = {
   LADDER_SECTION_10FT: "FL-10",            // ladder is sold in 10' sections
-  SPLICE_KIT: "LADDER_SPLICE_KIT",         // splice kit Inventory ID
+  SPLICE_KIT: "LADDER SPLICE KIT",         // splice kit Inventory ID
   CLAMP_PAIR: "LAD-CP1",                   // component for wall standoffs (per pair: qty 2)
   STANDOFF_GUSSET: "LAD-SO1G",             // component for wall standoffs (per pair: qty 2)
 };
@@ -442,28 +442,33 @@ export default function EzLadderConfigurator() {
   
 // --- BOM rows (Inventory ID + Quantity) for export ---------------------------
 const bomItems = useMemo(() => {
-  const rows: { sku: string; qty: number }[] = [];
-  const add = (sku: string, qty: number) => {
-    if (qty && qty > 0) rows.push({ sku: normalizeSku(sku), qty });
+  const rows: { sku: string; qty: string }[] = [];
+  const add = (sku: string, qty: number | string) => {
+    const numeric = typeof qty === "number" ? qty : parseFloat(qty);
+    if (!numeric || numeric <= 0) return;
+    const display = typeof qty === "number" ? qty.toString() : qty;
+    rows.push({ sku: normalizeSku(sku), qty: display });
   };
 
-  const totalFeet = Math.max(0, sections.reduce((sum, ft) => sum + ft, 0));
-  const ladder10ftQty = Math.ceil(totalFeet / 10);
-  add(ERP_SKU.LADDER_SECTION_10FT, ladder10ftQty);
+  sections.forEach((sectionFeet) => {
+    const qty = (sectionFeet / 10).toFixed(1);
+    add(ERP_SKU.LADDER_SECTION_10FT, qty);
+  });
 
   add(ERP_SKU.SPLICE_KIT, Math.max(0, splices));
 
-  combinedSupports.forEach(({ sku, qty }) => add(sku, qty));
+  combinedSupports.forEach(({ sku, qty }) => add(sku, 2 * qty));
 
   if (wallPairs > 0) {
-    add(ERP_SKU.CLAMP_PAIR, 2 * wallPairs);
-    add(ERP_SKU.STANDOFF_GUSSET, 2 * wallPairs);
+    const componentQty = (2 * wallPairs).toString();
+    add(ERP_SKU.CLAMP_PAIR, componentQty);
+    add(ERP_SKU.STANDOFF_GUSSET, componentQty);
   }
 
-  if (accWT) add("FL-WT-01", 1);
-  if (accWT && accPR) add("FL-PR-02", 1);
-  if (accWT && accPR && accGate) add("LSG-2030", 1);
-  if (accCover) add("FL-LGDFP-02", 1);
+  if (accWT) add("FL-WT-01", "1");
+  if (accWT && accPR) add("FL-PR-02", "1");
+  if (accWT && accPR && accGate) add("LSG-2030-PCY", "1");
+  if (accCover) add("FL-LGDFP-02", "1");
 
   return rows;
 }, [sections, splices, combinedSupports, wallPairs, accWT, accPR, accGate, accCover]);
@@ -499,7 +504,7 @@ function exportBOMCsv() {
   const feetCost = resolvedFeet ? (resolvedFeet.type === "SO2" ? PRICES.FEET_SO2 : PRICES.FEET_SO3) : 0;
   const wtCost = accWT ? PRICES["FL-WT-01"] : 0;
   const prCost = accWT && accPR ? PRICES["FL-PR-02"] : 0;
-  const gateCost = accWT && accPR && accGate ? PRICES["LSG-2030"] : 0;
+  const gateCost = accWT && accPR && accGate ? PRICES["LSG-2030-PCY"] : 0;
   const coverCost = accCover ? PRICES["FL-LGDFP-02"] : 0;
   const totalCost = ladderCost + spliceCost + wallCost + feetCost + wtCost + prCost + gateCost + coverCost;
 
@@ -507,7 +512,7 @@ function exportBOMCsv() {
     const list: { sku: string; desc: string }[] = [];
     if (accWT) list.push({ sku: "FL‑WT‑01", desc: "Walk‑Through Arms" });
     if (accWT && accPR) list.push({ sku: "FL‑PR‑02", desc: "P Returns" });
-    if (accWT && accPR && accGate) list.push({ sku: "LSG‑2030", desc: "Safety Gate" });
+    if (accWT && accPR && accGate) list.push({ sku: "LSG-2030-PCY", desc: "Safety Gate" });
     if (accCover) list.push({ sku: "FL‑LGDFP‑02", desc: "Security Cover" });
     return list;
   }, [accWT, accPR, accGate, accCover]);
@@ -639,7 +644,7 @@ function exportBOMCsv() {
                 </label>
                 <label htmlFor="gate" className={cn("flex items-center gap-3 p-2 border rounded-lg cursor-pointer", (accWT && accPR && accGate) && "ring-2 ring-blue-500", !(accWT && accPR) && "opacity-50") }>
                   <div className="w-10 h-10 rounded bg-neutral-100 border grid place-items-center text-neutral-500">GT</div>
-                  <div className="flex-1"><div className="font-medium text-sm">Safety Gate</div><div className="text-xs text-muted-foreground">LSG‑2030</div></div>
+                  <div className="flex-1"><div className="font-medium text-sm">Safety Gate</div><div className="text-xs text-muted-foreground">LSG-2030-PCY</div></div>
                   <Checkbox id="gate" checked={accWT && accPR && accGate} disabled={!(accWT && accPR)} onCheckedChange={(v) => setAccGate(!!v)} />
                 </label>
                 <label htmlFor="cover" className={cn("flex items-center gap-3 p-2 border rounded-lg cursor-pointer", accCover && "ring-2 ring-blue-500") }>
