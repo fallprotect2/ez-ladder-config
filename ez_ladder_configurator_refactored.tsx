@@ -380,8 +380,7 @@ export default function EzLadderConfigurator() {
   // Inputs
   const [feet, setFeet] = useState(20);
   const [inches, setInches] = useState(0);
-  const [sdFeet, setSdFeet] = useState(1);
-  const [sdInches, setSdInches] = useState(0);
+  const [standoffInches, setStandoffInches] = useState(12);
   const [useFeetAnchors, setUseFeetAnchors] = useState(false);
   const [accWT, setAccWT] = useState(false);
   const [accPR, setAccPR] = useState(false);
@@ -393,7 +392,7 @@ export default function EzLadderConfigurator() {
   const userInches = useMemo(() => feetToInches(Number(feet || 0)) + Number(inches || 0), [feet, inches]);
 
   // Standoff resolution
-  const requestedStandoffInches = useMemo(() => feetToInches(Number(sdFeet || 0)) + Number(sdInches || 0), [sdFeet, sdInches]);
+  const requestedStandoffInches = useMemo(() => Number(standoffInches || 0), [standoffInches]);
   const wallResolved = useMemo(() => resolveStandoffSpec(requestedStandoffInches || 0), [requestedStandoffInches]);
   const wallSku = wallResolved?.sku ?? "LAD-SO2";
   const wallOffset = wallResolved?.valueInches ?? 0;
@@ -588,10 +587,25 @@ function exportBOMCsv() {
                     />
                   </div>
                 )}
-              <div className="mt-2 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-                <div><Label className="text-xs">Feet</Label><Input type="number" min={0} value={sdFeet} onChange={(e) => setSdFeet(Math.max(0, Number(e.target.value)))} /></div>
-                <div><Label className="text-xs">Inches</Label><Input type="number" min={0} max={11} value={sdInches} onChange={(e) => setSdInches(Math.min(11, Math.max(0, Number(e.target.value))))} /></div>
-                <div className="hidden sm:flex items-center justify-center p-2"><ArrowHorizontal className="w-8 h-8 text-neutral-400" /></div>
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-xs uppercase tracking-wide text-neutral-500">Selected offset</span>
+                  <span className="font-medium">{Math.round(standoffInches)}″</span>
+                </div>
+                <input
+                  type="range"
+                  min={7}
+                  max={15}
+                  step={1}
+                  value={standoffInches}
+                  onChange={(e) => setStandoffInches(Number(e.target.value))}
+                  className="w-full accent-blue-600"
+                  aria-label="Standoff distance in inches"
+                />
+                <div className="flex items-center justify-between text-xs text-neutral-500">
+                  <span>7″</span>
+                  <span>15″</span>
+                </div>
               </div>
               {/* Per request: hide requested/resolved summary */}
             </div>
