@@ -22,6 +22,7 @@ const PRICES = {
   "LAD-SO3": 24.6,
   FEET_SO2: 22.5,
   FEET_SO3: 24.6,
+  "LAD-CP2": 1.36,
   "FL-WT-01": 329.22,
   "FL-PR-02": 146.44,
   "LSG-2030-PCY": 425,
@@ -33,8 +34,13 @@ const ERP_SKU = {
   LADDER_SECTION_10FT: "FL-10",            // ladder is sold in 10' sections
   SPLICE_KIT: "LADDER SPLICE KIT",         // splice kit Inventory ID
   CLAMP_PAIR: "LAD-CP1",                   // component for wall standoffs (per pair: qty 2)
+  CLAMP_PAIR_ALT: "LAD-CP2",               // alternate clamp plate for specific offsets (per pair: qty 2)
   STANDOFF_GUSSET: "LAD-SO1G",             // component for wall standoffs (per pair: qty 2)
 };
+
+const CLAMP_PAIR_ALT_OFFSETS = [10.875, 14.25, 15.375];
+const isAltClampOffset = (offset: number) =>
+  CLAMP_PAIR_ALT_OFFSETS.some(v => Math.abs(v - offset) < 1e-6);
 
 const normalizeSku = (s: string) => s.replace(/[‐-‒–—―]/g, "-");
 
@@ -460,9 +466,12 @@ const bomItems = useMemo(() => {
   combinedSupports.forEach(({ sku, qty }) => add(sku, 2 * qty));
 
   if (wallPairs > 0) {
-    const componentQty = (2 * wallPairs).toString();
-    add(ERP_SKU.CLAMP_PAIR, componentQty);
-    add(ERP_SKU.STANDOFF_GUSSET, componentQty);
+    const cp2Pairs = isAltClampOffset(wallOffset) ? wallPairs : 0;
+    const cp1Pairs = wallPairs - cp2Pairs;
+    if (cp1Pairs > 0) add(ERP_SKU.CLAMP_PAIR, (2 * cp1Pairs).toString());
+    if (cp2Pairs > 0) add(ERP_SKU.CLAMP_PAIR_ALT, (2 * cp2Pairs).toString());
+    const gussetQty = (2 * wallPairs).toString();
+    add(ERP_SKU.STANDOFF_GUSSET, gussetQty);
   }
 
   if (accWT) add("FL-WT-01", "1");
@@ -471,7 +480,7 @@ const bomItems = useMemo(() => {
   if (accCover) add("FL-LGDFP-02", "1");
 
   return rows;
-}, [sections, splices, combinedSupports, wallPairs, accWT, accPR, accGate, accCover]);
+}, [sections, splices, combinedSupports, wallPairs, wallOffset, accWT, accPR, accGate, accCover]);
 
 // --- CSV download (adds Project Task + Cost Code) ----------------------------
 function exportBOMCsv() {
