@@ -456,6 +456,9 @@ const bomItems = useMemo(() => {
     rows.push({ sku: normalizeSku(sku), qty: display });
   };
 
+  let cp1Pairs = 0;
+  let cp2Pairs = 0;
+
   sections.forEach((sectionFeet) => {
     const qty = (sectionFeet / 10).toFixed(1);
     add(ERP_SKU.LADDER_SECTION_10FT, qty);
@@ -466,8 +469,8 @@ const bomItems = useMemo(() => {
   combinedSupports.forEach(({ sku, qty }) => add(sku, 2 * qty));
 
   if (wallPairs > 0) {
-    const cp2Pairs = isAltClampOffset(wallOffset) ? wallPairs : 0;
-    const cp1Pairs = wallPairs - cp2Pairs;
+    cp2Pairs = isAltClampOffset(wallOffset) ? wallPairs : 0;
+    cp1Pairs = wallPairs - cp2Pairs;
     if (cp1Pairs > 0) add(ERP_SKU.CLAMP_PAIR, (2 * cp1Pairs).toString());
     if (cp2Pairs > 0) add(ERP_SKU.CLAMP_PAIR_ALT, (2 * cp2Pairs).toString());
     const gussetQty = (2 * wallPairs).toString();
@@ -479,8 +482,16 @@ const bomItems = useMemo(() => {
   if (accWT && accPR && accGate) add("LSG-2030-PCY", "1");
   if (accCover) add("FL-LGDFP-02", "1");
 
+  const feetStandoffs = resolvedFeet ? 2 : 0;
+  const cp1Plates = cp1Pairs * 2;
+  const cp2Plates = cp2Pairs * 2;
+  const hardwareQty = feetStandoffs * 2 + cp1Plates * 4 + cp2Plates * 6;
+  if (hardwareQty > 0) {
+    ["19634", "36753", "33784", "0156022"].forEach((sku) => add(sku, hardwareQty));
+  }
+
   return rows;
-}, [sections, splices, combinedSupports, wallPairs, wallOffset, accWT, accPR, accGate, accCover]);
+}, [sections, splices, combinedSupports, wallPairs, wallOffset, accWT, accPR, accGate, accCover, resolvedFeet]);
 
 // --- CSV download (adds Project Task + Cost Code) ----------------------------
 function exportBOMCsv() {
